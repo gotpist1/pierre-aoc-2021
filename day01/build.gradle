@@ -33,7 +33,7 @@ application {
 jar {
   manifest {
     attributes(
-      'Main-Class': 'aoc.App'
+      'Main-Class': 'com.cygni.stridsberg.aoc.App'
     )
   }
 }
