@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 
 public class App {
@@ -55,43 +54,33 @@ public class App {
     }
 
     public Integer getSolutionPart2() {
-        Map<String,String> numberMap = Map.of("012345","0","12","1","01346","2","01236","3","1256","4","02356",
-            "5","023456","6","012","7","0123456","8",
-            "012356","9");
-        List<String> outputEntrys = new ArrayList<>();
-        Map<String, String> valuesMap = new HashMap<>();
-
-        List<SignalPatternAndCode> patternsList = new ArrayList<>();
-        for (String line : input) {
-            var keyValue = line.split("\\|");
-            valuesMap.put(keyValue[0], keyValue[1]);
-            patternsList.add(new SignalPatternAndCode(Arrays.stream(keyValue[0].split("\\s+"))
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList()),
-                Arrays.stream(keyValue[1].split("\\s+"))
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toList())));
-        }
+        Map<String, String> numberMap = Map.of("012345", "0", "12", "1", "01346", "2", "01236", "3", "1256", "4", "02356",
+            "5", "023456", "6", "012", "7", "0123456", "8",
+            "012356", "9");
+        List<String> outputEntries = new ArrayList<>();
+        var patternsList = input
+            .stream()
+            .map(this::mapToSignalPatternAndCode).collect(Collectors.toList());
 
         for (SignalPatternAndCode signalPatternAndCode : patternsList) {
-            Map<String, Integer> valuesMap2 = new HashMap<>();
-            Map<String, String> valuesMap3 = new HashMap<>();
+            Map<String, Integer> foundNumbers = new HashMap<>();
+            Map<String, String> segmentsMap = new HashMap<>();
             signalPatternAndCode.signalPatterns().forEach(signalPattern -> {
                 switch (signalPattern.length()) {
-                    case 2 -> valuesMap2.put(signalPattern, 1);
-                    case 3 -> valuesMap2.put(signalPattern, 7);
-                    case 4 -> valuesMap2.put(signalPattern, 4);
-                    case 7 -> valuesMap2.put(signalPattern, 8);
+                    case 2 -> foundNumbers.put(signalPattern, 1);
+                    case 3 -> foundNumbers.put(signalPattern, 7);
+                    case 4 -> foundNumbers.put(signalPattern, 4);
+                    case 7 -> foundNumbers.put(signalPattern, 8);
                 }
             });
-            String one = valuesMap2.entrySet().stream().filter(e -> e.getValue() == 1).map(Map.Entry::getKey).findFirst().get();
-            String eight = valuesMap2.entrySet().stream().filter(e -> e.getValue() == 8).map(Map.Entry::getKey).findFirst().get();
-            String four = valuesMap2.entrySet().stream().filter(e -> e.getValue() == 4).map(Map.Entry::getKey).findFirst().get();
-            String seven = valuesMap2.entrySet().stream().filter(e -> e.getValue() == 7).map(Map.Entry::getKey).findFirst().get();
-            String zeroSegment="",oneSegment= "", twoSegment= "", sixSegment= "",
-               nineSegment ="";
-            oneSegment = findDiff(seven,one).get();
-            valuesMap3.put(oneSegment,"0");
+            String one = getSpecificNumber(foundNumbers, 1);
+            String eight = getSpecificNumber(foundNumbers, 8);
+            String four = getSpecificNumber(foundNumbers, 4);
+            String seven = getSpecificNumber(foundNumbers, 7);
+            String zeroSegmentIndex = "", oneSegmentIndex = "", twoSegmentIndex = "", threeSegmentIndex = "", fourthSegmentIndex = "", fiveSegmentIndex =
+                "", sixthSegmentIndex = "";
+            zeroSegmentIndex = findDiff(seven, one).orElseThrow();
+            segmentsMap.put(zeroSegmentIndex, "0");
 
             var allWithSixSegments =
                 signalPatternAndCode.signalPatterns().stream().filter(p -> p.length() == 6).collect(Collectors.toList());
@@ -99,63 +88,74 @@ public class App {
             for (String pattern : allWithSixSegments) {
                 var sevenDiff = findDiff(seven, pattern);
                 var fourDiff = findDiff(four, pattern);
-                if (sevenDiff.isPresent() && fourDiff.isPresent() && sevenDiff.get().equals(fourDiff.get())) {
-                    valuesMap2.put(pattern, 6);
-                    sixSegment = sevenDiff.get();
-                    valuesMap3.put(sixSegment,"1");
-                    var zeroAndOneSeg = oneSegment + sixSegment;
-                    twoSegment = findDiff(seven,zeroAndOneSeg).get();
-                    valuesMap3.put(twoSegment,"2");
-
+                if (sevenDiff.isPresent() && fourDiff.isPresent() && sevenDiff.get().equals(fourDiff.get()) &&
+                    !foundNumbers.containsKey(pattern)) {
+                    foundNumbers.put(pattern, 6);
+                    oneSegmentIndex = sevenDiff.get();
+                    segmentsMap.put(oneSegmentIndex, "1");
                 }
             }
+            var zeroAndOneSeg = zeroSegmentIndex + oneSegmentIndex;
+            twoSegmentIndex = findDiff(seven, zeroAndOneSeg).orElseThrow();
+            segmentsMap.put(twoSegmentIndex, "2");
             for (String pattern : allWithSixSegments) {
                 var eightDiff = findDiff(eight, pattern);
                 var fourDiff = findDiff(four, pattern);
                 if (eightDiff.isPresent() && fourDiff.isPresent() && eightDiff.get().equals(fourDiff.get())) {
-                    if (!valuesMap2.containsKey(pattern)) {
-                        valuesMap2.put(pattern, 0);
-                        zeroSegment = findDiff(eight, pattern).get();
-                        valuesMap3.put(zeroSegment,"6");
-                        var fiveSegmentIndex = four.codePoints()
+                    if (!foundNumbers.containsKey(pattern)) {
+                        foundNumbers.put(pattern, 0);
+                        sixthSegmentIndex = findDiff(eight, pattern).orElseThrow();
+                        segmentsMap.put(sixthSegmentIndex, "6");
+                        fiveSegmentIndex = four.codePoints()
                             .mapToObj(c -> String.valueOf((char) c))
-                            .filter(c -> !valuesMap3.containsKey(c))
-                            .findFirst().get();
-                        valuesMap3.put(fiveSegmentIndex,"5");
+                            .filter(c -> !segmentsMap.containsKey(c))
+                            .findFirst().orElseThrow();
+                        segmentsMap.put(fiveSegmentIndex, "5");
                     }
                 }
             }
             for (String pattern : allWithSixSegments) {
-                if (!valuesMap2.containsKey(pattern)) {
-                    valuesMap2.put(pattern, 9);
-                    nineSegment = findDiff(eight, pattern).get();
-                    valuesMap3.put(nineSegment,"4");
+                if (!foundNumbers.containsKey(pattern)) {
+                    foundNumbers.put(pattern, 9);
+                    fourthSegmentIndex = findDiff(eight, pattern).orElseThrow();
+                    segmentsMap.put(fourthSegmentIndex, "4");
                 }
             }
-            var threeSegmentIndex = eight.codePoints()
+            threeSegmentIndex = eight.codePoints()
                 .mapToObj(c -> String.valueOf((char) c))
-                .filter(c -> !valuesMap3.containsKey(c))
-                .findFirst().get();
-            valuesMap3.put(threeSegmentIndex,"3");
+                .filter(c -> !segmentsMap.containsKey(c))
+                .findFirst().orElseThrow();
+            segmentsMap.put(threeSegmentIndex, "3");
             StringBuilder builder = new StringBuilder();
-            for(String code : signalPatternAndCode.codes()){
-               var currentCode = code.codePoints()
-                   .mapToObj(c -> String.valueOf((char) c))
-                   .map(valuesMap3::get)
-                   .sorted()
-                  .collect(Collectors.joining());
-               var number = numberMap.get(currentCode);
-               builder.append(number);
-               System.out.println("hej");
-           }
-            outputEntrys.add(builder.toString());
+            for (String code : signalPatternAndCode.codes()) {
+                var currentCode = code.codePoints()
+                    .mapToObj(c -> String.valueOf((char) c))
+                    .map(segmentsMap::get)
+                    .sorted()
+                    .collect(Collectors.joining());
+                var number = numberMap.get(currentCode);
+                builder.append(number);
+            }
+            outputEntries.add(builder.toString());
 
         }
-
-
-        return outputEntrys.stream().mapToInt(Integer::parseInt).sum();
+        return outputEntries.stream().mapToInt(Integer::parseInt).sum();
     }
 
+    private SignalPatternAndCode mapToSignalPatternAndCode(String inputLine) {
+        var signalsAndCodes = inputLine.split("\\|");
+        return new SignalPatternAndCode(stringToList(signalsAndCodes[0]), stringToList(signalsAndCodes[1]));
+    }
+
+    private String getSpecificNumber(Map<String, Integer> foundNumbers, int i) {
+        return foundNumbers.entrySet().stream().filter(e -> e.getValue() == i).map(Map.Entry::getKey).findFirst().orElseThrow();
+    }
+
+    private List<String> stringToList(String value) {
+        return Arrays.stream(value.split("\\s+"))
+            .filter(val -> !val.isEmpty())
+            .collect(Collectors.toList());
+    }
 
     record SignalPatternAndCode(List<String> signalPatterns, List<String> codes) {
     }
@@ -169,5 +169,4 @@ public class App {
             .filter(s -> !tmp.contains(s))
             .findFirst();
     }
-
 }
